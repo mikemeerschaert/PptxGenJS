@@ -1,4 +1,4 @@
-/* PptxGenJS 3.12.0 @ 2023-03-20T03:12:31.353Z */
+/* PptxGenJS 3.12.0 @ 2023-04-12T18:43:30.703Z */
 'use strict';
 
 var JSZip = require('jszip');
@@ -1020,9 +1020,10 @@ function parseTextToLines(cell, colWidth, verbose) {
         // console.log('...............................................\n\n')
     }
     // STEP 3: Tokenize every text object into words (then it's really easy to assemble lines below without having to break text, add its `options`, etc.)
+    var lineCells = [];
     inputLines1.forEach(function (line) {
+        var _a;
         line.forEach(function (cell) {
-            var lineCells = [];
             var cellTextStr = String(cell.text); // force convert to string (compiled JS is better with this than a cast)
             var lineWords = cellTextStr.split(' ');
             lineWords.forEach(function (word, idx) {
@@ -1032,9 +1033,15 @@ function parseTextToLines(cell, colWidth, verbose) {
                     cellProps.breakLine = idx + 1 === lineWords.length;
                 lineCells.push({ _type: SLIDE_OBJECT_TYPES.tablecell, text: word + (idx + 1 < lineWords.length ? ' ' : ''), options: cellProps });
             });
-            inputLines2.push(lineCells);
         });
+        if (lineCells.length > 0 && ((_a = lineCells[lineCells.length - 1].options) === null || _a === void 0 ? void 0 : _a.breakLine)) {
+            inputLines2.push(lineCells);
+            lineCells = [];
+        }
     });
+    if (lineCells.length > 0) {
+        inputLines2.push(lineCells);
+    }
     if (verbose) {
         console.log("[3/4] inputLines2 (".concat(inputLines2.length, ")"));
         inputLines2.forEach(function (line) { return console.log("[3/4] line: ".concat(JSON.stringify(line))); });
