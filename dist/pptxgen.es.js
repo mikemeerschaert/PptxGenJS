@@ -1,4 +1,4 @@
-/* PptxGenJS 3.12.0 @ 2023-04-12T18:43:30.716Z */
+/* PptxGenJS 3.12.0 @ 2023-05-01T18:30:37.318Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -5792,6 +5792,7 @@ function slideObjectRelationsToXml(slide, defaultRels) {
  */
 function genXmlParagraphProperties(textObj, isDefault) {
     var _a, _b;
+    var strXmlBulletColor = '';
     var strXmlBullet = '';
     var strXmlLnSpc = '';
     var strXmlParaSpc = '';
@@ -5844,11 +5845,9 @@ function genXmlParagraphProperties(textObj, isDefault) {
         if (typeof textObj.options.bullet === 'object') {
             if ((_b = (_a = textObj === null || textObj === void 0 ? void 0 : textObj.options) === null || _a === void 0 ? void 0 : _a.bullet) === null || _b === void 0 ? void 0 : _b.indent)
                 bulletMarL = valToPts(textObj.options.bullet.indent);
-            if (textObj.options.bullet.type) {
-                if (textObj.options.bullet.type.toString().toLowerCase() === 'number') {
-                    paragraphPropXml += " marL=\"".concat(textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL, "\" indent=\"-").concat(bulletMarL, "\"");
-                    strXmlBullet = "<a:buSzPct val=\"100000\"/><a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"".concat(textObj.options.bullet.style || 'arabicPeriod', "\" startAt=\"").concat(textObj.options.bullet.numberStartAt || textObj.options.bullet.startAt || '1', "\"/>");
-                }
+            if (textObj.options.bullet.type && textObj.options.bullet.type.toString().toLowerCase() === 'number') {
+                paragraphPropXml += " marL=\"".concat(textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL, "\" indent=\"-").concat(bulletMarL, "\"");
+                strXmlBullet = "<a:buSzPct val=\"100000\"/><a:buFont typeface=\"+mj-lt\"/><a:buAutoNum type=\"".concat(textObj.options.bullet.style || 'arabicPeriod', "\" startAt=\"").concat(textObj.options.bullet.numberStartAt || textObj.options.bullet.startAt || '1', "\"/>");
             }
             else if (textObj.options.bullet.characterCode) {
                 var bulletCode = "&#x".concat(textObj.options.bullet.characterCode, ";");
@@ -5875,6 +5874,14 @@ function genXmlParagraphProperties(textObj, isDefault) {
                 paragraphPropXml += " marL=\"".concat(textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL, "\" indent=\"-").concat(bulletMarL, "\"");
                 strXmlBullet = "<a:buSzPct val=\"100000\"/><a:buChar char=\"".concat(BULLET_TYPES.DEFAULT, "\"/>");
             }
+            if (textObj.options.bullet.color) {
+                // check if color is hex
+                if (!/^([0-9A-Fa-f]{3}){1,2}$/.test(textObj.options.bullet.color)) {
+                    console.warn('Warning: `bullet.color should be a hex code (ex: FF0000)`!');
+                    textObj.options.bullet.color = '000000';
+                }
+                strXmlBulletColor = "<a:buClr><a:srgbClr val=\"".concat(textObj.options.bullet.color, "\" /></a:buClr>");
+            }
         }
         else if (textObj.options.bullet) {
             paragraphPropXml += " marL=\"".concat(textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL, "\" indent=\"-").concat(bulletMarL, "\"");
@@ -5892,7 +5899,7 @@ function genXmlParagraphProperties(textObj, isDefault) {
         }
         // B: Close Paragraph-Properties
         // IMPORTANT: strXmlLnSpc, strXmlParaSpc, and strXmlBullet require strict ordering - anything out of order is ignored. (PPT-Online, PPT for Mac)
-        paragraphPropXml += '>' + strXmlLnSpc + strXmlParaSpc + strXmlBullet + strXmlTabStops;
+        paragraphPropXml += '>' + strXmlLnSpc + strXmlParaSpc + strXmlBulletColor + strXmlBullet + strXmlTabStops;
         if (isDefault)
             paragraphPropXml += genXmlTextRunProperties(textObj.options, true);
         paragraphPropXml += '</' + tag + '>';
@@ -6023,7 +6030,7 @@ function genXmlTextRun(textObj) {
  */
 function genXmlBodyProperties(slideObject) {
     var bodyProperties = '<a:bodyPr';
-    if (slideObject && slideObject._type === SLIDE_OBJECT_TYPES.text && slideObject.options._bodyProp) {
+    if (slideObject && (slideObject._type === SLIDE_OBJECT_TYPES.text || slideObject._type === SLIDE_OBJECT_TYPES.placeholder) && slideObject.options._bodyProp) {
         // PPT-2019 EX: <a:bodyPr wrap="square" lIns="1270" tIns="1270" rIns="1270" bIns="1270" rtlCol="0" anchor="ctr"/>
         // A: Enable or disable textwrapping none or square
         bodyProperties += slideObject.options._bodyProp.wrap ? ' wrap="square"' : ' wrap="none"';
