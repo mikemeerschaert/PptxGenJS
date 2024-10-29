@@ -906,7 +906,7 @@ declare namespace PptxGenJS {
 		 * @deprecated v3.6.0 - use `DataOrPathProps` instead - remove in v4.0.0
 		 */
 		src?: string
-		}
+	}
 	/**
 	 * Color in Hex format
 	 * @example 'FF3399'
@@ -1225,6 +1225,15 @@ declare namespace PptxGenJS {
 		 * @example [{ position:1 }, { position:3 }] // Set first tab stop to 1 inch, set second tab stop to 3 inches
 		 */
 		tabStops?: Array<{ position: number, alignment?: 'l' | 'r' | 'ctr' | 'dec' }>
+		/**
+		 * text direction
+		 * `horz` = horizontal
+		 * `vert` = rotate 90^
+		 * `vert270` = rotate 270^
+		 * `wordArtVert` = stacked
+		 * @default 'horz'
+		 */
+		textDirection?: 'horz' | 'vert' | 'vert270' | 'wordArtVert'
 		/**
 		 * Transparency (percent)
 		 * - MS-PPT > Format Shape > Text Options > Text Fill & Outline > Text Fill > Transparency
@@ -2491,7 +2500,7 @@ declare namespace PptxGenJS {
 		background?: BackgroundProps
 		margin?: Margin
 		slideNumber?: SlideNumberProps
-		objects?: Array< | { chart: IChartOpts }
+		objects?: Array<| { chart: IChartOpts }
 			| { image: ImageProps }
 			| { line: ShapeProps }
 			| { rect: ShapeProps }
@@ -2505,7 +2514,7 @@ declare namespace PptxGenJS {
 					 */
 					text?: string
 				}
-		}>
+			}>
 
 		/**
 		 * @deprecated v3.3.0 - use `background`
