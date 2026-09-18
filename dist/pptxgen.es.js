@@ -1,4 +1,4 @@
-/* PptxGenJS 4.0.1 @ 2025-06-25T23:35:35.098Z */
+/* PptxGenJS 4.0.1 @ 2026-09-18T21:30:58.919Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -961,9 +961,10 @@ function parseTextToLines(cell, colWidth, verbose) {
         }
     });
     // STEP 3: Tokenize every text object into words (then it's really easy to assemble lines below without having to break text, add its `options`, etc.)
+    let lineCells = [];
     inputLines1.forEach(line => {
+        var _a;
         line.forEach(cell => {
-            const lineCells = [];
             const cellTextStr = String(cell.text); // force convert to string (compiled JS is better with this than a cast)
             const lineWords = cellTextStr.split(' ');
             lineWords.forEach((word, idx) => {
@@ -973,9 +974,15 @@ function parseTextToLines(cell, colWidth, verbose) {
                     cellProps.breakLine = idx + 1 === lineWords.length;
                 lineCells.push({ _type: SLIDE_OBJECT_TYPES.tablecell, text: word + (idx + 1 < lineWords.length ? ' ' : ''), options: cellProps });
             });
-            inputLines2.push(lineCells);
         });
+        if (lineCells.length > 0 && ((_a = lineCells[lineCells.length - 1].options) === null || _a === void 0 ? void 0 : _a.breakLine)) {
+            inputLines2.push(lineCells);
+            lineCells = [];
+        }
     });
+    if (lineCells.length > 0) {
+        inputLines2.push(lineCells);
+    }
     // STEP 4: Group cells/words into lines based upon space consumed by word letters
     inputLines2.forEach(line => {
         let lineCells = [];
@@ -2587,7 +2594,20 @@ function addTextDefinition(target, text, opts, isPlaceholder) {
                 itemOpts._bodyProp.tIns = inch2Emu(itemOpts.inset);
                 itemOpts._bodyProp.bIns = inch2Emu(itemOpts.inset);
             }
-            // F: Transform @deprecated props
+            // F: Margin
+            if (itemOpts.margin && Array.isArray(itemOpts.margin)) {
+                itemOpts._bodyProp.tIns = inch2Emu(itemOpts.margin[0] || 0);
+                itemOpts._bodyProp.rIns = inch2Emu(itemOpts.margin[1] || 0);
+                itemOpts._bodyProp.bIns = inch2Emu(itemOpts.margin[2] || 0);
+                itemOpts._bodyProp.lIns = inch2Emu(itemOpts.margin[3] || 0);
+            }
+            else if (typeof itemOpts.margin === 'number') {
+                itemOpts._bodyProp.lIns = inch2Emu(itemOpts.margin);
+                itemOpts._bodyProp.rIns = inch2Emu(itemOpts.margin);
+                itemOpts._bodyProp.bIns = inch2Emu(itemOpts.margin);
+                itemOpts._bodyProp.tIns = inch2Emu(itemOpts.margin);
+            }
+            // G: Transform @deprecated props
             if (typeof itemOpts.underline === 'boolean' && itemOpts.underline === true)
                 itemOpts.underline = { style: 'sng' };
         }
@@ -5380,21 +5400,6 @@ function slideObjectToXml(slide) {
                 // Lines can have zero cy, but text should not
                 if (!slideItemObj.options.line && cy === 0)
                     cy = EMU * 0.3;
-                // Margin/Padding/Inset for textboxes
-                if (!slideItemObj.options._bodyProp)
-                    slideItemObj.options._bodyProp = {};
-                if (slideItemObj.options.margin && Array.isArray(slideItemObj.options.margin)) {
-                    slideItemObj.options._bodyProp.lIns = valToPts(slideItemObj.options.margin[0] || 0);
-                    slideItemObj.options._bodyProp.rIns = valToPts(slideItemObj.options.margin[1] || 0);
-                    slideItemObj.options._bodyProp.bIns = valToPts(slideItemObj.options.margin[2] || 0);
-                    slideItemObj.options._bodyProp.tIns = valToPts(slideItemObj.options.margin[3] || 0);
-                }
-                else if (typeof slideItemObj.options.margin === 'number') {
-                    slideItemObj.options._bodyProp.lIns = valToPts(slideItemObj.options.margin);
-                    slideItemObj.options._bodyProp.rIns = valToPts(slideItemObj.options.margin);
-                    slideItemObj.options._bodyProp.bIns = valToPts(slideItemObj.options.margin);
-                    slideItemObj.options._bodyProp.tIns = valToPts(slideItemObj.options.margin);
-                }
                 // A: Start SHAPE =======================================================
                 strSlideXml += '<p:sp>';
                 // B: The addition of the "txBox" attribute is the sole determiner of if an object is a shape or textbox
@@ -5799,6 +5804,7 @@ function slideObjectRelationsToXml(slide, defaultRels) {
  */
 function genXmlParagraphProperties(textObj, isDefault) {
     var _a, _b;
+    let strXmlBulletColor = '';
     let strXmlBullet = '';
     let strXmlLnSpc = '';
     let strXmlParaSpc = '';
@@ -5851,11 +5857,9 @@ function genXmlParagraphProperties(textObj, isDefault) {
         if (typeof textObj.options.bullet === 'object') {
             if ((_b = (_a = textObj === null || textObj === void 0 ? void 0 : textObj.options) === null || _a === void 0 ? void 0 : _a.bullet) === null || _b === void 0 ? void 0 : _b.indent)
                 bulletMarL = valToPts(textObj.options.bullet.indent);
-            if (textObj.options.bullet.type) {
-                if (textObj.options.bullet.type.toString().toLowerCase() === 'number') {
-                    paragraphPropXml += ` marL="${textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL}" indent="-${bulletMarL}"`;
-                    strXmlBullet = `<a:buSzPct val="100000"/><a:buFont typeface="+mj-lt"/><a:buAutoNum type="${textObj.options.bullet.style || 'arabicPeriod'}" startAt="${textObj.options.bullet.numberStartAt || textObj.options.bullet.startAt || '1'}"/>`;
-                }
+            if (textObj.options.bullet.type && textObj.options.bullet.type.toString().toLowerCase() === 'number') {
+                paragraphPropXml += ` marL="${textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL}" indent="-${bulletMarL}"`;
+                strXmlBullet = `<a:buSzPct val="100000"/><a:buFont typeface="+mj-lt"/><a:buAutoNum type="${textObj.options.bullet.style || 'arabicPeriod'}" startAt="${textObj.options.bullet.numberStartAt || textObj.options.bullet.startAt || '1'}"/>`;
             }
             else if (textObj.options.bullet.characterCode) {
                 let bulletCode = `&#x${textObj.options.bullet.characterCode};`;
@@ -5882,6 +5886,14 @@ function genXmlParagraphProperties(textObj, isDefault) {
                 paragraphPropXml += ` marL="${textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL}" indent="-${bulletMarL}"`;
                 strXmlBullet = `<a:buSzPct val="100000"/><a:buChar char="${BULLET_TYPES.DEFAULT}"/>`;
             }
+            if (textObj.options.bullet.color) {
+                // check if color is hex
+                if (!/^([0-9A-Fa-f]{3}){1,2}$/.test(textObj.options.bullet.color)) {
+                    console.warn('Warning: `bullet.color should be a hex code (ex: FF0000)`!');
+                    textObj.options.bullet.color = '000000';
+                }
+                strXmlBulletColor = `<a:buClr><a:srgbClr val="${textObj.options.bullet.color}" /></a:buClr>`;
+            }
         }
         else if (textObj.options.bullet) {
             paragraphPropXml += ` marL="${textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL}" indent="-${bulletMarL}"`;
@@ -5899,7 +5911,7 @@ function genXmlParagraphProperties(textObj, isDefault) {
         }
         // B: Close Paragraph-Properties
         // IMPORTANT: strXmlLnSpc, strXmlParaSpc, and strXmlBullet require strict ordering - anything out of order is ignored. (PPT-Online, PPT for Mac)
-        paragraphPropXml += '>' + strXmlLnSpc + strXmlParaSpc + strXmlBullet + strXmlTabStops;
+        paragraphPropXml += '>' + strXmlLnSpc + strXmlParaSpc + strXmlBulletColor + strXmlBullet + strXmlTabStops;
         if (isDefault)
             paragraphPropXml += genXmlTextRunProperties(textObj.options, true);
         paragraphPropXml += '</' + tag + '>';
@@ -6030,7 +6042,7 @@ function genXmlTextRun(textObj) {
  */
 function genXmlBodyProperties(slideObject) {
     let bodyProperties = '<a:bodyPr';
-    if (slideObject && slideObject._type === SLIDE_OBJECT_TYPES.text && slideObject.options._bodyProp) {
+    if (slideObject && (slideObject._type === SLIDE_OBJECT_TYPES.text || slideObject._type === SLIDE_OBJECT_TYPES.placeholder) && slideObject.options._bodyProp) {
         // PPT-2019 EX: <a:bodyPr wrap="square" lIns="1270" tIns="1270" rIns="1270" bIns="1270" rtlCol="0" anchor="ctr"/>
         // A: Enable or disable textwrapping none or square
         bodyProperties += slideObject.options._bodyProp.wrap ? ' wrap="square"' : ' wrap="none"';
@@ -6236,7 +6248,10 @@ function genXmlTextBody(slideObj) {
             textObj.options.paraSpaceBefore = textObj.options.paraSpaceBefore || opts.paraSpaceBefore;
             textObj.options.paraSpaceAfter = textObj.options.paraSpaceAfter || opts.paraSpaceAfter;
             paragraphPropXml = genXmlParagraphProperties(textObj, false);
-            strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', ''); // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
+            // Only emit a:pPr on the first run of each paragraph — duplicate pPr causes PPT repair errors
+            if (idx === 0) {
+                strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', ''); // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
+            }
             // C: Inherit any main options (color, fontSize, etc.)
             // NOTE: We only pass the text.options to genXmlTextRun (not the Slide.options),
             // so the run building function cant just fallback to Slide.color, therefore, we need to do that here before passing options below.
